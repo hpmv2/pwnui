@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+service UIService {
+    rpc NewSession(NewSessionRequest) returns (NewSessionResponse);
+}
+
+message NewSessionRequest {
+    
+}
+
+message NewSessionResponse {
+    int32 id = 1;
+}

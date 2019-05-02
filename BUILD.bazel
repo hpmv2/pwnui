@@ -1,0 +1,40 @@
+package(default_visibility = ["//visibility:public"])
+
+load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+
+cc_grpc_library(
+    name = "service_proto_grpc",
+    srcs = ["service.proto"],
+    proto_only = False,
+    well_known_protos = True,
+    deps = [],
+)
+
+proto_library(
+    name = "service_proto",
+    srcs = ["service.proto"],
+)
+
+cc_library(
+    name = "service",
+    srcs = ["service.cc"],
+    hdrs = ["service.h"],
+    deps = [
+        ":service_proto_grpc",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/strings",
+        "@llvm_headers//:llvm",
+        "@llvm_libs//:llvm",
+    ],
+)
+
+cc_binary(
+    name = "server_main",
+    srcs = ["server_main.cc"],
+    deps = [
+        ":service",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/strings",
+    ],
+)

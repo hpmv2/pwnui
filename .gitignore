@@ -1,0 +1,8 @@
+.bazelproject
+bazel-bin
+bazel-genfiles
+bazel-bzl
+bazel-out
+bazel-testlogs
+.clwb
+

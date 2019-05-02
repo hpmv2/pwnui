@@ -1,0 +1,18 @@
+load("@com_github_grpc_grpc_web//bazel:closure_grpc_web_library.bzl", "closure_grpc_web_library")
+
+# A bit hacky, but we're going with typescript and grpc-web doesn't seem to support that out of the box yet.
+genrule(
+    name = "frontend_grpc_gen",
+    srcs = ["//:service.proto"],
+    outs = [
+        "service_pb.js",
+        "service_pb.d.ts",
+        "ServiceServiceClientPb.ts",
+    ],
+    cmd = "protoc -I=. " +
+          "--plugin=protoc-gen-grpc-web=$(location @com_github_grpc_grpc_web//javascript/net/grpc/web:protoc-gen-grpc-web) " +
+          "--js_out=import_style=commonjs:$$(dirname $(location service_pb.d.ts)) " +
+          "--grpc-web_out=import_style=typescript,mode=grpcwebtext:$$(dirname $(location service_pb.d.ts)) " +
+          "$(location //:service.proto)",
+    tools = ["@com_github_grpc_grpc_web//javascript/net/grpc/web:protoc-gen-grpc-web"],
+)
