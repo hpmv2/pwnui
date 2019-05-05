@@ -18,9 +18,8 @@ new_local_repository(
 # Set up gRPC
 git_repository(
     name = "com_github_grpc_grpc",
-    commit = "7741e806a213cba63c96234f16d712a8aa101a49",
+    commit = "1ef80f46bd9176b8411196b864fd174a2c007bf2",
     remote = "https://github.com/grpc/grpc.git",
-    shallow_since = "1556224604 -0700",
 )
 
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
@@ -54,6 +53,50 @@ closure_repositories()
 
 git_repository(
     name = "com_google_protobuf",
-    commit = "v3.7.0",
+    commit = "6973c3a5041636c1d8dc5f7f6c8c1f3c15bc63d6",
     remote = "https://github.com/google/protobuf.git",
 )
+
+# A bunch of python stuff
+git_repository(
+    name = "build_stack_rules_proto",
+    commit = "ca73549e5e7490ee32a87ad2cfecbc062c82c249",
+    remote = "https://github.com/stackb/rules_proto.git",
+)
+
+load("@build_stack_rules_proto//python:deps.bzl", "python_grpc_library")
+
+python_grpc_library()
+
+load("@io_bazel_rules_python//python:pip.bzl", "pip_import", "pip_repositories")
+
+pip_repositories()
+
+pip_import(
+    name = "protobuf_py_deps",
+    requirements = "@build_stack_rules_proto//python/requirements:protobuf.txt",
+)
+
+load("@protobuf_py_deps//:requirements.bzl", protobuf_pip_install = "pip_install")
+
+protobuf_pip_install()
+
+pip_import(
+    name = "grpc_py_deps",
+    requirements = "@build_stack_rules_proto//python:requirements.txt",
+)
+
+load("@grpc_py_deps//:requirements.bzl", grpc_pip_install = "pip_install")
+
+grpc_pip_install()
+
+# Boost stuff
+git_repository(
+    name = "com_github_nelhage_rules_boost",
+    commit = "6d6fd834281cb8f8e758dd9ad76df86304bf1869",
+    remote = "https://github.com/nelhage/rules_boost",
+)
+
+load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
+
+boost_deps()

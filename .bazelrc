@@ -1,2 +1,3 @@
 build --client_env=CC=/usr/bin/clang-8
 build --spawn_strategy local
+build --cxxopt='-std=c++17'

@@ -2,12 +2,31 @@ syntax = "proto3";
 
 service UIService {
     rpc NewSession(NewSessionRequest) returns (NewSessionResponse);
+
+    // Used by the IO driver which runs the user-provided Python script.
+    rpc IOServerConnect(stream IOServerRequest) returns (stream IOServerResponse);
 }
 
 message NewSessionRequest {
-    
+    // path of the binary to run.
+    string binary = 1;
 }
 
 message NewSessionResponse {
     int32 id = 1;
+}
+
+message IOServerRequest {
+    oneof request {
+        int32 start_id = 1;  // start the session
+        int32 readn = 2;  // This will change. Just prototype now.
+        bytes write = 3;  // This will change. Just prototype now.
+    }
+}
+
+message IOServerResponse {
+    oneof response {
+        bool ack = 1;
+        string content = 2;
+    }
 }

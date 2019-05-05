@@ -16,12 +16,45 @@ proto_library(
 )
 
 cc_library(
+    name = "process",
+    srcs = ["process.cc"],
+    hdrs = ["process.h"],
+    deps = [
+        "@boost//:asio",
+        "@boost//:process",
+        "@com_github_google_glog//:glog",
+    ],
+)
+
+cc_library(
+    name = "io-manager",
+    srcs = ["io-manager.cc"],
+    hdrs = ["io-manager.h"],
+    deps = [
+        ":process",
+        "@com_google_absl//absl/synchronization",
+    ],
+)
+
+cc_library(
+    name = "session-state",
+    srcs = ["session-state.cc"],
+    hdrs = ["session-state.h"],
+    deps = [
+        ":io-manager",
+        ":process",
+    ],
+)
+
+cc_library(
     name = "service",
     srcs = ["service.cc"],
     hdrs = ["service.h"],
     deps = [
         ":service_proto_grpc",
+        ":session-state",
         "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
         "@llvm_headers//:llvm",
         "@llvm_libs//:llvm",
@@ -35,6 +68,8 @@ cc_binary(
         ":service",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/debugging:failure_signal_handler",
+        "@com_google_absl//absl/debugging:symbolize",
         "@com_google_absl//absl/strings",
     ],
 )

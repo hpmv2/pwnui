@@ -1,0 +1,13 @@
+load("@build_stack_rules_proto//python:python_grpc_library.bzl", "python_grpc_library")
+
+python_grpc_library(
+    name = "service_proto_py",
+    has_services = True,
+    deps = ["//:service_proto"],
+)
+
+py_binary(
+    name = "driver",
+    srcs = ["driver.py"],
+    deps = [":service_proto_py"],
+)
