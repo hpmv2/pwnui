@@ -23,27 +23,28 @@ grpc::Status UIServiceImpl::IOServerConnect(::grpc::ServerContext* context,
   IOServerRequest req;
   SessionState* session = nullptr;
   while (stream->Read(&req)) {
+    LOG(INFO) << "IO driver -> " << req.DebugString();
     switch (req.request_case()) {
       case IOServerRequest::kStartId: {
-        LOG(INFO) << "IO server ready for session " << req.start_id();
         IOServerResponse resp;
         session = sessions_.at(req.start_id()).get();
         resp.set_ack(true);
+        LOG(INFO) << "IO driver <- " << resp.DebugString();
         stream->Write(resp);
         break;
       }
-      case IOServerRequest::kReadn: {
-        LOG(INFO) << "IO server reading " << req.readn() << " bytes";
+      case IOServerRequest::kRead: {
         IOServerResponse resp;
-        resp.set_content(session->ReadN(req.readn()));
+        session->Read(req.read(), resp.mutable_read());
+        LOG(INFO) << "IO driver <- " << resp.DebugString();
         stream->Write(resp);
         break;
       }
       case IOServerRequest::kWrite: {
-        LOG(INFO) << "IO server writing " << req.write();
         IOServerResponse resp;
         resp.set_ack(true);
         session->Write(req.write());
+        LOG(INFO) << "IO driver <- " << resp.DebugString();
         stream->Write(resp);
         break;
       }

@@ -1,10 +1,14 @@
 syntax = "proto3";
+option cc_enable_arenas = true;
 
 service UIService {
     rpc NewSession(NewSessionRequest) returns (NewSessionResponse);
 
     // Used by the IO driver which runs the user-provided Python script.
     rpc IOServerConnect(stream IOServerRequest) returns (stream IOServerResponse);
+
+    // Used by the UI to display I/O data in a streaming fashion.
+    rpc GetIODataForUI(IODataForUIRequest) returns (stream IODataUIStreamingInstruction);
 }
 
 message NewSessionRequest {
@@ -16,17 +20,103 @@ message NewSessionResponse {
     int32 id = 1;
 }
 
+
+// Begin messages used for the IO driver to communicate with the server.
 message IOServerRequest {
     oneof request {
         int32 start_id = 1;  // start the session
-        int32 readn = 2;  // This will change. Just prototype now.
-        bytes write = 3;  // This will change. Just prototype now.
+        IOReadRequest read = 2;  // This will change. Just prototype now.
+        IOWriteRequest write = 3;  // This will change. Just prototype now.
     }
 }
 
 message IOServerResponse {
     oneof response {
         bool ack = 1;
-        string content = 2;
+        IOReadResponse read = 2;
     }
 }
+
+message IOReadRequest {
+    repeated IOReadElement elements = 1;
+}
+
+message IOReadElement {
+    oneof read {
+        Regex regex = 1;
+        bool little_endian_32 = 2;
+    }
+    message Regex {
+        string regex = 1;
+        repeated IOElementType groups = 2;
+    }
+}
+
+message IOReadResponse {
+    repeated IOReadResultElement elements = 1;
+    string error = 2;
+}
+
+message IOReadResultElement {
+    bytes data = 1;
+    repeated string groups = 2;
+}
+
+message IOWriteRequest {
+    repeated IOWriteElement elements = 1;
+}
+
+message IOWriteElement {
+    oneof write {
+        bytes data = 1;
+        int64 decimal_integer = 2;
+        LittleEndianInteger little_endian_integer = 3;
+    }
+
+    message LittleEndianInteger {
+        int64 integer = 1;
+        int32 width = 2;
+    }
+}
+
+// End messages used for the IO driver to communicate with the server.
+
+// Begin messages used for IO data streaming to the UI.
+message IODataForUIRequest {
+    int32 session_id = 1;
+}
+
+message IODataUIStreamingInstruction {
+    oneof instruction {
+        int32 remove = 1;
+        IOChunk add = 2;
+    }
+    int64 timestamp = 3;
+}
+
+message IOChunk {
+    int32 id = 1;
+    repeated IOElement elements = 2;
+}
+
+message IOElement {
+    bytes data = 1;
+    IOElementType type = 2;
+    bool pending = 4;
+}
+
+enum IOElementType {
+    IOET_INVALID = 0;
+    IOET_UNINTERESTING = 1;
+    IOET_UNPROCESSED = 2;
+    IOET_RAW = 3;
+    IOET_HEX32 = 4;
+    IOET_DECIMAL32 = 5;
+}
+
+enum IOChunkSource {
+    IOCS_INVALID = 0;
+    IOCS_STDIN = 1;
+    IOCS_STDOUT = 2;
+}
+// End messages used for IO data streaming to the UI.

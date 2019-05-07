@@ -4,35 +4,39 @@ import grpc
 from concurrent.futures import as_completed
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
+import logging
+logging.basicConfig()
 
 session_id = None
 
 # proof-of-concept code quality
-readn_future = Future()
+read_future = Future()
 write_future = Future()
 done_future = Future()
 response_future = Future()
 
 
 def request_streaming():
-    global readn_future
+    global read_future
     global write_future
     req = pb.IOServerRequest()
     req.start_id = session_id
     yield req
 
     while True:
-        for op in as_completed([readn_future, write_future, done_future]):
-            if op is readn_future:
-                readn = readn_future.result()
+        for op in as_completed([read_future, write_future, done_future]):
+            if op is read_future:
+                read = read_future.result()
+                print 'Reading with request', read
                 req = pb.IOServerRequest()
-                req.readn = readn
-                readn_future = Future()
+                req.read.CopyFrom(read)
+                read_future = Future()
                 yield req
             elif op is write_future:
                 write = write_future.result()
+                print 'Writing with request', write
                 req = pb.IOServerRequest()
-                req.write = write
+                req.write.CopyFrom(write)
                 write_future = Future()
                 yield req
             else:
@@ -72,21 +76,39 @@ def wait_for_response():
     return result
 
 
-def remote_readn(n):
-    readn_future.set_result(n)
-    return wait_for_response().content
+def remote_read32():
+    req = pb.IOReadRequest()
+    ele = req.elements.add()
+    ele.little_endian_32 = True
+    read_future.set_result(req)
+    return wait_for_response()
+
+def remote_readregex(regex, *groups):
+    req = pb.IOReadRequest()
+    ele = req.elements.add()
+    ele.regex.regex = regex
+    ele.regex.groups[:] = groups
+    read_future.set_result(req)
+    return wait_for_response()
 
 def remote_write(data):
-    write_future.set_result(data)
+    req = pb.IOWriteRequest()
+    ele = req.elements.add()
+    ele.data = data
+    write_future.set_result(req)
+    wait_for_response()
+
+def remote_writeint(val):
+    req = pb.IOWriteRequest()
+    ele = req.elements.add()
+    ele.decimal_integer = val
+    write_future.set_result(req)
     wait_for_response()
 
 # Just proof-of-concept for now to demonstrate the implementability of read/write functions which
 # go through our server to perform the actual I/O.
 wait_for_response()
-remote_write('ABCDEFGH')
-print remote_readn(8)
-remote_write('IJKLMNO')
-print remote_readn(4)
-print remote_readn(2)
-print remote_readn(1)
+remote_write('ABCD I have 100 dollars...!')
+print remote_read32()
+print remote_readregex('have (\\d+) dollars', pb.IOET_DECIMAL32)
 done_future.set_result(1)

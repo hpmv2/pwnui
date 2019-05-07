@@ -19,12 +19,12 @@ class SessionState {
     io_manager_ = std::make_unique<IOManager>(process_.get());
   }
 
-  std::string ReadN(int bytes){
-    return io_manager_->ReadN(bytes);
+  void Read(const IOReadRequest& req, IOReadResponse* resp) {
+    return io_manager_->Read(req, resp);
   }
 
-  void Write(std::string_view data){
-    io_manager_->Write(data);
+  void Write(const IOWriteRequest& req){
+    io_manager_->Write(req);
   }
 
  private:
