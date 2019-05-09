@@ -1,0 +1,48 @@
+.operation {
+    font-family: 'Courier New', Courier, monospace;
+    display: inline;
+
+    &.stdin {
+        .element {
+            &.element-raw {
+                background-color: #ffe2e2;
+            }
+        }
+    }
+    &.stdout {
+        .element {
+            &.element-raw {
+                background-color: #e0e2ff;
+            }
+            &.element-uninteresting {
+                background-color: #eff0ff;
+            }
+            &.element-hex32 {
+                background-color: #ced1ff;
+                border: 1px solid #9ba2ff;
+                border-radius: 2px;
+            }
+            &.element-decimal32 {
+                background-color: #ced1ff;
+                border: 1px solid #9ba2ff;
+                border-radius: 2px;
+            }
+            &.element-unprocessed {
+                background-color: #e2e2e2;
+            }
+        }
+    }
+
+    .chunk {
+        display: inline;
+
+        .element {
+            display: inline;
+
+            .pending {
+                color: gray;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+        }
+    }
+}

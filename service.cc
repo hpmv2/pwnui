@@ -1,7 +1,7 @@
 #include "service.h"
 #include "absl/strings/str_cat.h"
-#include "lldb/API/SBDebugger.h"
 #include "glog/logging.h"
+#include "lldb/API/SBDebugger.h"
 
 grpc::Status UIServiceImpl::NewSession(::grpc::ServerContext* context,
                                        const ::NewSessionRequest* request,
@@ -17,9 +17,9 @@ grpc::Status UIServiceImpl::NewSession(::grpc::ServerContext* context,
   return grpc::Status::OK;
 }
 
-grpc::Status UIServiceImpl::IOServerConnect(::grpc::ServerContext* context,
-                                            ::grpc::ServerReaderWriter<::IOServerResponse,
-                                                                       ::IOServerRequest>* stream) {
+grpc::Status UIServiceImpl::IOServerConnect(
+    ::grpc::ServerContext* context,
+    ::grpc::ServerReaderWriter<::IOServerResponse, ::IOServerRequest>* stream) {
   IOServerRequest req;
   SessionState* session = nullptr;
   while (stream->Read(&req)) {
@@ -35,7 +35,7 @@ grpc::Status UIServiceImpl::IOServerConnect(::grpc::ServerContext* context,
       }
       case IOServerRequest::kRead: {
         IOServerResponse resp;
-        session->Read(req.read(), resp.mutable_read());
+        session->io_manager()->Read(req.read(), resp.mutable_read());
         LOG(INFO) << "IO driver <- " << resp.DebugString();
         stream->Write(resp);
         break;
@@ -43,13 +43,31 @@ grpc::Status UIServiceImpl::IOServerConnect(::grpc::ServerContext* context,
       case IOServerRequest::kWrite: {
         IOServerResponse resp;
         resp.set_ack(true);
-        session->Write(req.write());
+        session->io_manager()->Write(req.write());
         LOG(INFO) << "IO driver <- " << resp.DebugString();
         stream->Write(resp);
         break;
       }
-      case IOServerRequest::REQUEST_NOT_SET:break;
+      case IOServerRequest::REQUEST_NOT_SET:
+        break;
     }
   }
+  return grpc::Status::OK;
+}
+grpc::Status UIServiceImpl::GetIODataForUI(
+    ::grpc::ServerContext* context, const UIIODataRequest* request,
+    ::grpc::ServerWriter<UIIODataUpdate>* writer) {
+  if (!sessions_.contains(request->session_id())) {
+    LOG(WARNING) << "Client sent IO streaming request for non-existent session "
+                 << request->session_id();
+    return grpc::Status::CANCELLED;
+  }
+  const auto& session = sessions_.at(request->session_id());
+  session->io_manager()->OnUIUpdate([&](const UIIODataUpdate* update) {
+    if (update == nullptr) {
+      return !context->IsCancelled();
+    }
+    return writer->Write(*update);
+  });
   return grpc::Status::OK;
 }

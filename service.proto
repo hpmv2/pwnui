@@ -8,7 +8,7 @@ service UIService {
     rpc IOServerConnect(stream IOServerRequest) returns (stream IOServerResponse);
 
     // Used by the UI to display I/O data in a streaming fashion.
-    rpc GetIODataForUI(IODataForUIRequest) returns (stream IODataUIStreamingInstruction);
+    rpc GetIODataForUI(UIIODataRequest) returns (stream UIIODataUpdate);
 }
 
 message NewSessionRequest {
@@ -38,10 +38,10 @@ message IOServerResponse {
 }
 
 message IOReadRequest {
-    repeated IOReadElement elements = 1;
+    repeated IOReadChunk chunks = 1;
 }
 
-message IOReadElement {
+message IOReadChunk {
     oneof read {
         Regex regex = 1;
         bool little_endian_32 = 2;
@@ -53,20 +53,20 @@ message IOReadElement {
 }
 
 message IOReadResponse {
-    repeated IOReadResultElement elements = 1;
+    repeated IOReadChunkResult chunks = 1;
     string error = 2;
 }
 
-message IOReadResultElement {
+message IOReadChunkResult {
     bytes data = 1;
     repeated string groups = 2;
 }
 
 message IOWriteRequest {
-    repeated IOWriteElement elements = 1;
+    repeated IOWriteChunk chunks = 1;
 }
 
-message IOWriteElement {
+message IOWriteChunk {
     oneof write {
         bytes data = 1;
         int64 decimal_integer = 2;
@@ -82,24 +82,41 @@ message IOWriteElement {
 // End messages used for the IO driver to communicate with the server.
 
 // Begin messages used for IO data streaming to the UI.
-message IODataForUIRequest {
+message UIIODataRequest {
     int32 session_id = 1;
 }
 
-message IODataUIStreamingInstruction {
-    oneof instruction {
-        int32 remove = 1;
-        IOChunk add = 2;
+message UIIODataUpdate {
+    oneof update {
+        UIIOOperation append_operation = 1;
+        UIIOChunkUpdate update_chunk = 2;
     }
     int64 timestamp = 3;
 }
 
-message IOChunk {
-    int32 id = 1;
-    repeated IOElement elements = 2;
+message UIIOChunkUpdate {
+    int32 chunk_id = 1;
+    repeated UIIOElement elements = 2;
+    bool remove = 3;
 }
 
-message IOElement {
+message UIIOOperation {
+    int32 op_id = 1;
+    repeated UIIOChunk chunks = 2;
+    enum UIIOOperationSource {
+        INVALID = 0;
+        STDIN = 1;
+        STDOUT = 2;
+    }
+    UIIOOperationSource source = 3;
+}
+
+message UIIOChunk {
+    int32 chunk_id = 1;
+    repeated UIIOElement elements = 3;
+}
+
+message UIIOElement {
     bytes data = 1;
     IOElementType type = 2;
     bool pending = 4;
@@ -112,11 +129,5 @@ enum IOElementType {
     IOET_RAW = 3;
     IOET_HEX32 = 4;
     IOET_DECIMAL32 = 5;
-}
-
-enum IOChunkSource {
-    IOCS_INVALID = 0;
-    IOCS_STDIN = 1;
-    IOCS_STDOUT = 2;
 }
 // End messages used for IO data streaming to the UI.

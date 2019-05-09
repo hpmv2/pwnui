@@ -5,6 +5,7 @@ from concurrent.futures import as_completed
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 import logging
+import time
 logging.basicConfig()
 
 session_id = None
@@ -78,37 +79,46 @@ def wait_for_response():
 
 def remote_read32():
     req = pb.IOReadRequest()
-    ele = req.elements.add()
+    ele = req.chunks.add()
     ele.little_endian_32 = True
     read_future.set_result(req)
     return wait_for_response()
 
+
 def remote_readregex(regex, *groups):
     req = pb.IOReadRequest()
-    ele = req.elements.add()
+    ele = req.chunks.add()
     ele.regex.regex = regex
     ele.regex.groups[:] = groups
     read_future.set_result(req)
     return wait_for_response()
 
+
 def remote_write(data):
     req = pb.IOWriteRequest()
-    ele = req.elements.add()
+    ele = req.chunks.add()
     ele.data = data
     write_future.set_result(req)
     wait_for_response()
 
+
 def remote_writeint(val):
     req = pb.IOWriteRequest()
-    ele = req.elements.add()
+    ele = req.chunks.add()
     ele.decimal_integer = val
     write_future.set_result(req)
     wait_for_response()
 
+
 # Just proof-of-concept for now to demonstrate the implementability of read/write functions which
 # go through our server to perform the actual I/O.
 wait_for_response()
-remote_write('ABCD I have 100 dollars...!')
+time.sleep(1)
+remote_write('ABCD I have 10')
+time.sleep(1)
 print remote_read32()
+time.sleep(1)
+remote_write('0 dollars...!')
+time.sleep(1)
 print remote_readregex('have (\\d+) dollars', pb.IOET_DECIMAL32)
 done_future.set_result(1)

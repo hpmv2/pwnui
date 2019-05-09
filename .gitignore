@@ -5,4 +5,4 @@ bazel-bzl
 bazel-out
 bazel-testlogs
 .clwb
-
+.vscode

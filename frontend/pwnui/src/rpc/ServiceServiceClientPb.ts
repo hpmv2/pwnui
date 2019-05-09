@@ -10,8 +10,12 @@
 import * as grpcWeb from 'grpc-web';
 
 import {
+  IOServerRequest,
+  IOServerResponse,
   NewSessionRequest,
-  NewSessionResponse} from './service_pb';
+  NewSessionResponse,
+  UIIODataRequest,
+  UIIODataUpdate} from './service_pb';
 
 export class UIServiceClient {
   client_: grpcWeb.AbstractClientBase;
@@ -51,6 +55,25 @@ export class UIServiceClient {
       metadata || {},
       this.methodInfoNewSession,
       callback);
+  }
+
+  methodInfoGetIODataForUI = new grpcWeb.AbstractClientBase.MethodInfo(
+    UIIODataUpdate,
+    (request: UIIODataRequest) => {
+      return request.serializeBinary();
+    },
+    UIIODataUpdate.deserializeBinary
+  );
+
+  getIODataForUI(
+    request: UIIODataRequest,
+    metadata?: grpcWeb.Metadata) {
+    return this.client_.serverStreaming(
+      this.hostname_ +
+        '/UIService/GetIODataForUI',
+      request,
+      metadata || {},
+      this.methodInfoGetIODataForUI);
   }
 
 }

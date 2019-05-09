@@ -1,3 +1,7 @@
+## Demo
+
+![IO Demo](demo/io-demo.gif)
+
 ## Setup
 
 Install LLVM toolchains and dev headers
@@ -32,7 +36,7 @@ Client:
 
 ```
 cd frontend/pwnui
-ng serve
+ng serve --aot
 ```
 
 ## Develop
