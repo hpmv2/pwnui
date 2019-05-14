@@ -12,23 +12,23 @@
     &.stdout {
         .element {
             &.element-raw {
-                background-color: #e0e2ff;
+                background-color: #989fff;
+                color: rgb(17, 51, 104);
             }
             &.element-uninteresting {
-                background-color: #eff0ff;
+                background-color: #d1d4ff;
+                color: gray;
             }
-            &.element-hex32 {
-                background-color: #ced1ff;
-                border: 1px solid #9ba2ff;
-                border-radius: 2px;
-            }
+            &.element-hex32,
             &.element-decimal32 {
-                background-color: #ced1ff;
+                background-color: #414eff;
                 border: 1px solid #9ba2ff;
+                color: white;
                 border-radius: 2px;
             }
             &.element-unprocessed {
-                background-color: #e2e2e2;
+                background-color: #c9c9c9;
+                color: #505050;
             }
         }
     }

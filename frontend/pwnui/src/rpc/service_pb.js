@@ -78,7 +78,8 @@ proto.NewSessionRequest.prototype.toObject = function(opt_includeInstance) {
  */
 proto.NewSessionRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-    binary: jspb.Message.getFieldWithDefault(msg, 1, "")
+    binary: jspb.Message.getFieldWithDefault(msg, 1, ""),
+    script: jspb.Message.getFieldWithDefault(msg, 2, "")
   };
 
   if (includeInstance) {
@@ -119,6 +120,10 @@ proto.NewSessionRequest.deserializeBinaryFromReader = function(msg, reader) {
       var value = /** @type {string} */ (reader.readString());
       msg.setBinary(value);
       break;
+    case 2:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setScript(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -155,6 +160,13 @@ proto.NewSessionRequest.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
+  f = message.getScript();
+  if (f.length > 0) {
+    writer.writeString(
+      2,
+      f
+    );
+  }
 };
 
 
@@ -170,6 +182,21 @@ proto.NewSessionRequest.prototype.getBinary = function() {
 /** @param {string} value */
 proto.NewSessionRequest.prototype.setBinary = function(value) {
   jspb.Message.setProto3StringField(this, 1, value);
+};
+
+
+/**
+ * optional string script = 2;
+ * @return {string}
+ */
+proto.NewSessionRequest.prototype.getScript = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
+};
+
+
+/** @param {string} value */
+proto.NewSessionRequest.prototype.setScript = function(value) {
+  jspb.Message.setProto3StringField(this, 2, value);
 };
 
 

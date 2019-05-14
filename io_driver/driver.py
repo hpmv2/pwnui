@@ -1,3 +1,5 @@
+import struct
+import traceback
 import service_pb2_grpc as rpc
 import service_pb2 as pb
 import grpc
@@ -6,119 +8,138 @@ from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import time
+import sys
 logging.basicConfig()
 
-session_id = None
 
-# proof-of-concept code quality
-read_future = Future()
-write_future = Future()
-done_future = Future()
-response_future = Future()
+class RemoteIOSession:
+    def __init__(self, session_id):
+        self.session_id = session_id
+        self.read_future = Future()
+        self.write_future = Future()
+        self.done_future = Future()
+        self.response_future = Future()
+        self.executor = ThreadPoolExecutor(max_workers=1)
+
+    def _request_streaming(self):
+        req = pb.IOServerRequest()
+        req.start_id = self.session_id
+        yield req
+
+        while True:
+            for op in as_completed([self.read_future, self.write_future, self.done_future]):
+                if op is self.read_future:
+                    read = self.read_future.result()
+                    print 'Reading with request', read
+                    req = pb.IOServerRequest()
+                    req.read.CopyFrom(read)
+                    self.read_future = Future()
+                    yield req
+                elif op is self.write_future:
+                    write = self.write_future.result()
+                    print 'Writing with request', write
+                    req = pb.IOServerRequest()
+                    req.write.CopyFrom(write)
+                    self.write_future = Future()
+                    yield req
+                else:
+                    return
+                break
+
+    def _do_rpc(self):
+        with grpc.insecure_channel('localhost:12345') as channel:
+            print 'Created channel', channel
+            stub = rpc.UIServiceStub(channel)
+            print 'Created stub', stub
+
+            response_stream = stub.IOServerConnect(self._request_streaming())
+
+            for resp in response_stream:
+                self.response_future.set_result(resp)
+
+    def start(self):
+        self.executor.submit(self._do_rpc)
+        self._wait_for_response()
+
+    def stop(self):
+        self.done_future.set_result(None)
+
+    def _wait_for_response(self):
+        result = self.response_future.result()
+        self.response_future = Future()
+        return result
+
+    def _do_read(self, req):
+        self.read_future.set_result(req)
+        return self._wait_for_response().read
+
+    def _do_write(self, req):
+        self.write_future.set_result(req)
+        return self._wait_for_response()
+
+    def read32(self):
+        req = pb.IOReadRequest()
+        ele = req.chunks.add()
+        ele.little_endian_32 = True
+        resp = self._do_read(req)
+        return struct.unpack('<I', resp.data)[0]
+
+    def readregex(self, regex, *groups):
+        req = pb.IOReadRequest()
+        ele = req.chunks.add()
+        ele.regex.regex = regex
+        ele.regex.groups[:] = groups
+        resp = self._do_read(req).chunks[0]
+        result = [resp.data]
+        for (data_type, data) in zip(groups, resp.groups):
+            result.append(self._parse_element(data, data_type))
+        return tuple(result)
+
+    def _parse_element(self, data, data_type):
+        if data_type == pb.IOET_RAW:
+            return data
+        if data_type == pb.IOET_DECIMAL32:
+            return int(data)
+        if data_type == pb.IOET_HEX32:
+            return struct.unpack('<I', data)[0]
+        return data
+
+    def write(self, data):
+        req = pb.IOWriteRequest()
+        ele = req.chunks.add()
+        ele.data = data
+        self._do_write(req)
+
+    def writeint(self, val):
+        req = pb.IOWriteRequest()
+        ele = req.chunks.add()
+        ele.decimal_integer = val
+        self._do_write(req)
+
+    def run_script(self, content):
+        s = self
+        try:
+            exec(content)
+        except Exception as e:
+            traceback.print_exc()
+            quit()
 
 
-def request_streaming():
-    global read_future
-    global write_future
-    req = pb.IOServerRequest()
-    req.start_id = session_id
-    yield req
-
-    while True:
-        for op in as_completed([read_future, write_future, done_future]):
-            if op is read_future:
-                read = read_future.result()
-                print 'Reading with request', read
-                req = pb.IOServerRequest()
-                req.read.CopyFrom(read)
-                read_future = Future()
-                yield req
-            elif op is write_future:
-                write = write_future.result()
-                print 'Writing with request', write
-                req = pb.IOServerRequest()
-                req.write.CopyFrom(write)
-                write_future = Future()
-                yield req
-            else:
-                return
-            break
-
-
-def do_rpc():
-    global response_future
-    global session_id
-    with grpc.insecure_channel('localhost:12345') as channel:
-        print('Created channel', channel)
-        stub = rpc.UIServiceStub(channel)
-        print('Created stub', stub)
-
-        # just for demo purposes - create a session to use. In reality the UI will be doing that.
-        req = pb.NewSessionRequest()
-        req.binary = '/bin/cat'
-        resp = stub.NewSession(req)
-        session_id = resp.id
-        print('Created session', session_id)
-
-        response_stream = stub.IOServerConnect(request_streaming())
-
-        for resp in response_stream:
-            response_future.set_result(resp)
-
-
-executor = ThreadPoolExecutor(max_workers=1)
-executor.submit(do_rpc)
-
-
-def wait_for_response():
-    global response_future
-    result = response_future.result()
-    response_future = Future()
-    return result
-
-
-def remote_read32():
-    req = pb.IOReadRequest()
-    ele = req.chunks.add()
-    ele.little_endian_32 = True
-    read_future.set_result(req)
-    return wait_for_response()
-
-
-def remote_readregex(regex, *groups):
-    req = pb.IOReadRequest()
-    ele = req.chunks.add()
-    ele.regex.regex = regex
-    ele.regex.groups[:] = groups
-    read_future.set_result(req)
-    return wait_for_response()
-
-
-def remote_write(data):
-    req = pb.IOWriteRequest()
-    ele = req.chunks.add()
-    ele.data = data
-    write_future.set_result(req)
-    wait_for_response()
-
-
-def remote_writeint(val):
-    req = pb.IOWriteRequest()
-    ele = req.chunks.add()
-    ele.decimal_integer = val
-    write_future.set_result(req)
-    wait_for_response()
-
-
-# Just proof-of-concept for now to demonstrate the implementability of read/write functions which
-# go through our server to perform the actual I/O.
-wait_for_response()
-time.sleep(1)
-remote_write('ABCD I have 10')
-time.sleep(1)
-print remote_read32()
-time.sleep(1)
-remote_write('0 dollars...!')
-time.sleep(1)
-print remote_readregex('have (\\d+) dollars', pb.IOET_DECIMAL32)
-done_future.set_result(1)
+if __name__ == '__main__':
+    print 'Running with ', sys.argv
+    session_id = int(sys.argv[1])
+    if session_id == -1:
+        # Testing.
+        with grpc.insecure_channel('localhost:12345') as channel:
+            stub = rpc.UIServiceStub(channel)
+            req = pb.NewSessionRequest()
+            req.binary = '/bin/cat'
+            resp = stub.NewSession(req)
+            session_id = resp.id
+            print('Created session', session_id)
+    script = sys.argv[2]
+    script_content = open(script).read()
+    session = RemoteIOSession(session_id)
+    session.start()
+    session.run_script(script_content)
+    session.stop()

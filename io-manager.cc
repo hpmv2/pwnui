@@ -3,7 +3,11 @@
 #include "glog/logging.h"
 
 IOManager::IOManager(Process* process) : process_(process) {
-  process_->read([this](std::string_view bytes) {
+  process_->read([this](std::string_view bytes, bool is_stderr) {
+    if (is_stderr) {
+      // TODO: What to do with stderr?
+      return;
+    }
     absl::MutexLock l(&mutex_);
     while (!pending_reads_.empty()) {
       ProcessDataForFrontReader(&bytes);
@@ -217,7 +221,8 @@ IOReadChunkResult* ChunkReadState_ReadRegex::ProcessAvailableData(
         elements->Add(current_.substr(ptr, m.position(i) - ptr), IOET_RAW);
       }
       ptr = m.position(i);
-      elements->Add(current_.substr(ptr, m.length(i)), groups_[i - 1]);
+      auto type = i - 1 < groups_.size() ? groups_[i - 1] : IOET_RAW;
+      elements->Add(current_.substr(ptr, m.length(i)), type);
       ptr += m.length(i);
       result->add_groups(sub_match.str());
     }

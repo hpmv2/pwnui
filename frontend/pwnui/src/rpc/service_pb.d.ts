@@ -4,6 +4,9 @@ export class NewSessionRequest extends jspb.Message {
   getBinary(): string;
   setBinary(value: string): void;
 
+  getScript(): string;
+  setScript(value: string): void;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): NewSessionRequest.AsObject;
   static toObject(includeInstance: boolean, msg: NewSessionRequest): NewSessionRequest.AsObject;
@@ -15,6 +18,7 @@ export class NewSessionRequest extends jspb.Message {
 export namespace NewSessionRequest {
   export type AsObject = {
     binary: string,
+    script: string,
   }
 }
 

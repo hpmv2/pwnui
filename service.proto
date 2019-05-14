@@ -14,6 +14,8 @@ service UIService {
 message NewSessionRequest {
     // path of the binary to run.
     string binary = 1;
+    // The contents of the IO script.
+    string script = 2;
 }
 
 message NewSessionResponse {

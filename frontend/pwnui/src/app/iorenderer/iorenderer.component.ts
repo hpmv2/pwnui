@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy } from '@angular/core';
 import { UIIOChunk, UIIODataRequest, UIIOOperation, UIIODataUpdate } from 'src/rpc/service_pb';
 import { UIServiceClient } from 'src/rpc/ServiceServiceClientPb';
 
@@ -7,7 +7,7 @@ import { UIServiceClient } from 'src/rpc/ServiceServiceClientPb';
   templateUrl: './iorenderer.component.html',
   styleUrls: ['./iorenderer.component.scss'],
 })
-export class IORendererComponent implements OnInit {
+export class IORendererComponent implements OnInit, OnDestroy {
   public ioData: Array<UIIOOperation> = [];
   private chunks: Map<number, UIIOChunk> = new Map();
 
@@ -22,17 +22,21 @@ export class IORendererComponent implements OnInit {
       let data = update.serializeBinary();
       update = UIIODataUpdate.deserializeBinary(data);
       if (update.hasAppendOperation()) {
-        this.ioData.push(update.getAppendOperation());
-        for (let chunk of update.getAppendOperation().getChunksList()) {
+        this.ioData.push(update.getAppendOperation()!);
+        for (let chunk of update.getAppendOperation()!.getChunksList()) {
           this.chunks.set(chunk.getChunkId(), chunk);
         }
       } else if (update.hasUpdateChunk()) {
-        let chunk = this.chunks.get(update.getUpdateChunk().getChunkId());
+        let chunk = this.chunks.get(update.getUpdateChunk()!.getChunkId())!;
         chunk.clearElementsList();
-        for (let element of update.getUpdateChunk().getElementsList()) {
+        for (let element of update.getUpdateChunk()!.getElementsList()) {
           chunk.addElements(element);
         }
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    // TODO: Cut the connection.
   }
 }

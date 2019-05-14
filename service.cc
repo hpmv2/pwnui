@@ -10,10 +10,9 @@ grpc::Status UIServiceImpl::NewSession(::grpc::ServerContext* context,
   LOG(INFO) << "Creating session " << session_id;
   SessionState::SessionStartOptions options;
   options.binary = request->binary();  // very primitive for now
-  sessions_[session_id] = std::make_unique<SessionState>(options);
-  auto session = sessions_[session_id].get();
+  options.script_content = request->script();
+  sessions_[session_id] = std::make_unique<SessionState>(session_id, options);
   response->set_id(session_id);
-  // do something with the session...
   return grpc::Status::OK;
 }
 

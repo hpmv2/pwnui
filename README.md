@@ -2,6 +2,8 @@
 
 ![IO Demo](demo/io-demo.gif)
 
+![Integrated editor](demo/integrated-editor.png)
+
 ## Setup
 
 Install LLVM toolchains and dev headers

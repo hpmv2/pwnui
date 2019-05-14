@@ -1,3 +1,7 @@
-Here is the output for session 1:
+Here is the output for session {{sessionId}}:
 
-<app-iorenderer [sessionId]="1"></app-iorenderer>
+<div *ngFor="let id of [sessionId]">
+    <app-iorenderer [sessionId]="sessionId" *ngIf="sessionId != null"></app-iorenderer>
+</div>
+<ngx-monaco-editor [(ngModel)]="code" [options]="editorOptions"></ngx-monaco-editor>
+<button (click)="newSession()">Start Session!</button>
