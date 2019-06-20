@@ -1,8 +1,1 @@
-<div class="operation" *ngFor="let op of ioData" [class.stdin]="op.getSource() == 1"
-    [class.stdout]="op.getSource() == 2">
-    <div class="chunk" *ngFor="let chunk of op.getChunksList()">
-        <div class="element" [ngClass]="(element | ioElementToText).cssClass"
-            *ngFor="let element of chunk.getElementsList()">{{(element | ioElementToText).text}}<span class="pending"
-                *ngIf="element.getPending()">...</span></div>
-    </div>
-</div>
+<iodriver-terminal [text]="driverText"></iodriver-terminal>

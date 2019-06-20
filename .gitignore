@@ -6,3 +6,4 @@ bazel-out
 bazel-testlogs
 .clwb
 .vscode
+compile_commands.json

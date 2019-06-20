@@ -15,6 +15,14 @@ new_local_repository(
     path = "/usr/lib/llvm-8/lib",
 )
 
+# Set up googletest
+git_repository(
+    name = "com_github_google_googletest",
+    commit = "e110929a7b496714c1f6f6be2edcf494a18e5676",
+    shallow_since = "1560526595 -0400",
+    remote = "https://github.com/google/googletest",
+)
+
 # Set up gRPC
 git_repository(
     name = "com_github_grpc_grpc",

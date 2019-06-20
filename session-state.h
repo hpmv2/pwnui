@@ -24,6 +24,10 @@ class SessionState {
   }
 
   IOManager* io_manager() { return io_manager_.get(); }
+  int session_id() const { return session_id_; }
+
+  void OnDriverOutput(
+      const std::function<void(const UIIODriverOutput& output)>& callback);
 
  private:
   // Begins running an IO script which will call back to this server to make

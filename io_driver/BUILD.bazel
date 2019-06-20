@@ -13,3 +13,15 @@ py_binary(
     srcs = ["driver.py"],
     deps = [":service_proto_py"],
 )
+
+py_library(
+    name = "io_ops",
+    srcs = ["io_ops.py"],
+    deps = [":service_proto_py"],
+)
+
+py_test(
+    name = "io_ops_test",
+    srcs = ["io_ops_test.py"],
+    deps = [":io_ops"],
+)

@@ -13,8 +13,14 @@ void SessionState::RunIOScript(const std::string& script) {
   io_driver_ = std::make_unique<DirectExecutionProcess>(
       "io_driver/driver",
       std::vector<std::string>{absl::StrCat(session_id_), script_file_path});
-  io_driver_->read([](std::string_view data, bool is_stderr) {
-    LOG(INFO) << "IO driver " << (is_stderr ? "stderr" : "stdout") << ": "
-              << data;
+}
+
+void SessionState::OnDriverOutput(
+    const std::function<void(const UIIODriverOutput& output)>& callback) {
+  io_driver_->read([callback](std::string_view data, bool is_stderr) {
+    UIIODriverOutput output;
+    output.set_data(std::string(data));
+    output.set_is_stderr(is_stderr);
+    callback(output);
   });
 }

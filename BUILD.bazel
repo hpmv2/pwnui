@@ -80,3 +80,17 @@ cc_binary(
         "//io_driver:driver",
     ]
 )
+
+cc_test(
+    name = "io-manager_test",
+    srcs = ["io-manager_test.cc"],
+    deps = [
+        "@com_github_google_googletest//:gtest",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/debugging:failure_signal_handler",
+        "@com_google_absl//absl/debugging:symbolize",
+        "@com_github_grpc_grpc//:grpc++",
+        ":process",
+        ":io-manager",
+    ],
+)

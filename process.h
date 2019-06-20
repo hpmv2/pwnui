@@ -29,6 +29,7 @@ class DirectExecutionProcess final : public Process {
   void write(std::string_view data) override;
 
  private:
+  const std::string binary_;
   boost::asio::io_service ios_;
   boost::process::async_pipe stdin_pipe_{ios_};
   boost::process::async_pipe stdout_pipe_{ios_};

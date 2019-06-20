@@ -22,62 +22,125 @@ message NewSessionResponse {
     int32 id = 1;
 }
 
-
 // Begin messages used for the IO driver to communicate with the server.
 message IOServerRequest {
     oneof request {
         int32 start_id = 1;  // start the session
-        IOReadRequest read = 2;  // This will change. Just prototype now.
-        IOWriteRequest write = 3;  // This will change. Just prototype now.
+        IOConsumer read = 2;
+        IOProducer write = 3;
+        IOConsumerSync sync = 4;
+    }
+}
+
+message IOConsumer {
+    message Any {
+    }
+    message Line {
+        IOConsumer predicate = 1;
+    }
+    message Regex {
+        string regex = 1;
+        repeated IOConsumerInterpretation group_interp = 2;
+    }
+    message Literal {
+        string literal = 1;
+    }
+    message NChars {
+        int32 min = 1;
+        int32 max = 2;
+    }
+    message Number {}
+    message Chain {
+        repeated IOConsumer consumers = 1;
+    }
+    message OneOf {
+        repeated IOConsumer consumers = 1;
+    }
+    int32 chain_id = 1;
+    IOConsumerInterpretation interp = 2;
+
+    oneof consumer {
+        Any any = 3;
+        Line line = 4;
+        Regex regex = 5;
+        Literal literal = 6;
+        NChars nchars = 7;
+        Number number = 8;
+        Chain chain = 9;
+        OneOf oneof = 10;
+    }
+}
+
+enum IOConsumerInterpretation {
+    IOCI_INVALID = 0;
+    IOCI_RAW = 1;
+    IOCI_LITTLE_ENDIAN = 2;
+    IOCI_DECIMAL = 3;
+}
+
+message IOProducer {
+    message LittleEndianNumber {
+        int64 number = 1;
+        int32 width = 2;
+    }
+    message DecimalNumber {
+        int64 number = 1;
+    }
+    message Literal {
+        string literal = 1;
+    }
+    oneof producer {
+        LittleEndianNumber little_endian_number = 1;
+        DecimalNumber decimal_number = 2;
+        Literal literal = 3;
+    }
+}
+
+message IOConsumerSync {
+    int32 chain_id = 1;
+}
+
+message IOReadResult {
+    message Any {
+    }
+    message Line {
+        IOReadResult inner = 1;
+    }
+    message Regex {
+        repeated string groups = 1;
+    }
+    message Literal {
+
+    }
+    message NChars {
+    }
+    message Number {
+    }
+    message Chain {
+        repeated IOReadResult inner = 1;
+    }
+    message OneOf {
+        int32 index = 1;
+        IOReadResult inner = 2;
+    }
+
+    string data = 1;
+    oneof detail {
+        Any any = 2;
+        Line line = 3;
+        Regex regex = 4;
+        Literal literal = 5;
+        NChars nchars = 6;
+        Number number = 7;
+        Chain chain = 8;
+        OneOf oneof = 9;
     }
 }
 
 message IOServerResponse {
     oneof response {
         bool ack = 1;
-        IOReadResponse read = 2;
-    }
-}
-
-message IOReadRequest {
-    repeated IOReadChunk chunks = 1;
-}
-
-message IOReadChunk {
-    oneof read {
-        Regex regex = 1;
-        bool little_endian_32 = 2;
-    }
-    message Regex {
-        string regex = 1;
-        repeated IOElementType groups = 2;
-    }
-}
-
-message IOReadResponse {
-    repeated IOReadChunkResult chunks = 1;
-    string error = 2;
-}
-
-message IOReadChunkResult {
-    bytes data = 1;
-    repeated string groups = 2;
-}
-
-message IOWriteRequest {
-    repeated IOWriteChunk chunks = 1;
-}
-
-message IOWriteChunk {
-    oneof write {
-        bytes data = 1;
-        int64 decimal_integer = 2;
-        LittleEndianInteger little_endian_integer = 3;
-    }
-
-    message LittleEndianInteger {
-        int64 integer = 1;
-        int32 width = 2;
+        IOReadResult result = 2;
     }
 }
 
@@ -89,47 +152,18 @@ message UIIODataRequest {
 }
 
 message UIIODataUpdate {
-    oneof update {
-        UIIOOperation append_operation = 1;
-        UIIOChunkUpdate update_chunk = 2;
-    }
     int64 timestamp = 3;
-}
 
-message UIIOChunkUpdate {
-    int32 chunk_id = 1;
-    repeated UIIOElement elements = 2;
-    bool remove = 3;
-}
-
-message UIIOOperation {
-    int32 op_id = 1;
-    repeated UIIOChunk chunks = 2;
-    enum UIIOOperationSource {
-        INVALID = 0;
-        STDIN = 1;
-        STDOUT = 2;
+    oneof kind {
+        UIIODriverOutput driver_output = 1;
+        // TODO: Implement the IO data output again.
     }
-    UIIOOperationSource source = 3;
 }
 
-message UIIOChunk {
-    int32 chunk_id = 1;
-    repeated UIIOElement elements = 3;
-}
-
-message UIIOElement {
+message UIIODriverOutput {
     bytes data = 1;
-    IOElementType type = 2;
-    bool pending = 4;
+    bool is_stderr = 2;
 }
 
-enum IOElementType {
-    IOET_INVALID = 0;
-    IOET_UNINTERESTING = 1;
-    IOET_UNPROCESSED = 2;
-    IOET_RAW = 3;
-    IOET_HEX32 = 4;
-    IOET_DECIMAL32 = 5;
-}
+
 // End messages used for IO data streaming to the UI.

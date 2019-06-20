@@ -1,5 +1,5 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
-import { UIIOChunk, UIIODataRequest, UIIOOperation, UIIODataUpdate } from 'src/rpc/service_pb';
+import { UIIODataRequest } from 'src/rpc/service_pb';
 import { UIServiceClient } from 'src/rpc/ServiceServiceClientPb';
 
 @Component({
@@ -8,30 +8,28 @@ import { UIServiceClient } from 'src/rpc/ServiceServiceClientPb';
   styleUrls: ['./iorenderer.component.scss'],
 })
 export class IORendererComponent implements OnInit, OnDestroy {
-  public ioData: Array<UIIOOperation> = [];
-  private chunks: Map<number, UIIOChunk> = new Map();
+  public driverText: string = '';
 
   @Input() public sessionId: number;
 
   constructor(private client: UIServiceClient) { }
 
-  ngOnInit() {
+  private binaryToAsciiText(binary: Uint8Array): string {
+    let result = '';
+    binary.forEach(c => {
+      result += String.fromCharCode(c);
+    });
+    return result;
+  }
+
+  async ngOnInit() {
     let request = new UIIODataRequest();
     request.setSessionId(this.sessionId);
+    console.log(request);
     this.client.getIODataForUI(request).on('data', (update) => {
-      let data = update.serializeBinary();
-      update = UIIODataUpdate.deserializeBinary(data);
-      if (update.hasAppendOperation()) {
-        this.ioData.push(update.getAppendOperation()!);
-        for (let chunk of update.getAppendOperation()!.getChunksList()) {
-          this.chunks.set(chunk.getChunkId(), chunk);
-        }
-      } else if (update.hasUpdateChunk()) {
-        let chunk = this.chunks.get(update.getUpdateChunk()!.getChunkId())!;
-        chunk.clearElementsList();
-        for (let element of update.getUpdateChunk()!.getElementsList()) {
-          chunk.addElements(element);
-        }
+      if (update.hasDriverOutput()) {
+        this.driverText += this.binaryToAsciiText(
+          update.getDriverOutput()!.getData_asU8());
       }
     });
   }
