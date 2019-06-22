@@ -64,9 +64,10 @@ TEST_F(IOManagerTest, Basic) {
   process_.DoRead("lolabcdef");
   AssertReadResult(1, TextProto(R"(
     data: "lolabc"
+    chars_consumed: 6
     chain {
-      inner { data: "lol" any {} }
-      inner { data: "abc" literal {} }
+      inner { data: "lol" chars_consumed: 3 any {} }
+      inner { data: "abc" chars_consumed: 3 literal {} }
     }
   )"));
 }
@@ -83,27 +84,135 @@ TEST_F(IOManagerTest, SuccessiveChains) {
   process_.DoRead("There are 512 apples! Woohoo!");
   AssertReadResult(1, TextProto(R"(
     data: "There are"
+    chars_consumed: 9
     chain {
-      inner { data: "There " any {} }
-      inner { data: "are" literal {} }
+      inner { data: "There " chars_consumed: 6 any {} }
+      inner { data: "are" chars_consumed: 3 literal {} }
     }
   )"));
   AssertReadResult(2, TextProto(R"(
     data: " 512 apples!"
+    chars_consumed: 12
     chain {
-      inner { data: " " any {} }
-      inner { data: "512" number {} }
-      inner { data: " apples" any {} }
-      inner { data: "!" literal {} }
+      inner { data: " " chars_consumed: 1 any {} }
+      inner { data: "512" chars_consumed: 3 number {} }
+      inner { data: " apples" chars_consumed: 7 any {} }
+      inner { data: "!" chars_consumed: 1 literal {} }
     }
   )"));
   AssertReadResult(3, TextProto(R"(
     data: " Woohoo!"
+    chars_consumed: 8
     chain {
-      inner { data: " Woohoo" any {} }
-      inner { data: "!" literal {} }
+      inner { data: " Woohoo" chars_consumed: 7 any {} }
+      inner { data: "!" chars_consumed: 1 literal {} }
     }
   )"));
+}
+
+TEST_F(IOManagerTest, Line) {
+  manager_.Read(TextProto(R"(
+    line {
+      predicate {
+        chain {
+          consumers { any {} }
+          consumers { literal { literal: "-" } }
+          consumers { any {} }
+        }
+      }
+    }
+    chain_id: 1
+  )"));
+  process_.DoRead("hello-world\n");
+  AssertReadResult(1, TextProto(R"(
+    data: "hello-world\n"
+    chain {
+      inner {
+        data: "hello-world\n"
+        line {
+          inner {
+            data: "hello-world"
+            chain {
+              inner {
+                data: "hello"
+                any {}
+                chars_consumed: 5
+              }
+              inner {
+                data: "-"
+                literal {}
+                chars_consumed: 1
+              }
+              inner {
+                data: "world"
+                any {}
+                chars_consumed: 5
+              }
+            }
+            chars_consumed: 11
+          }
+        }
+        chars_consumed: 12
+      }
+    }
+    chars_consumed: 12
+  )"));
+}
+
+TEST_F(IOManagerTest, Peek) {
+  manager_.Read(TextProto("any {} chain_id: 1"));
+  manager_.Read(
+      TextProto("peek { inner { literal { literal: 'abc' } } } chain_id: 1"));
+  manager_.Read(TextProto("any {} chain_id: 1"));
+  manager_.Read(TextProto("literal { literal: 'def' } chain_id: 1"));
+  process_.DoRead("lolabc123defghi");
+  AssertReadResult(1, TextProto(R"(
+    data: "lolabc123def"
+    chain {
+      inner {
+        data: "lol"
+        any {}
+        chars_consumed: 3
+      }
+      inner {
+        data: "abc"
+        peek {
+          inner {
+            data: "abc"
+            literal {}
+            chars_consumed: 3
+          }
+        }
+      }
+      inner {
+        data: "abc123"
+        any {}
+        chars_consumed: 6
+      }
+      inner {
+        data: "def"
+        literal {}
+        chars_consumed: 3
+      }
+    }
+    chars_consumed: 12
+  )"));
+}
+
+TEST_F(IOManagerTest, IncompleteChain) {
+  manager_.Read(TextProto("any {} chain_id: 1"));
+  manager_.Read(TextProto("literal { literal: 'fgh!' } chain_id: 1"));
+  process_.DoRead("abcdefg");
+  std::vector<UIIODataUpdate> updates;
+  manager_.OnUIUpdate([&](const UIIODataUpdate& update) {
+    updates.push_back(update);
+    return false;
+  });
+  process_.DoRead("h!");
+  for (const auto& update : updates) {
+    // Just print it out for inspection; the protos are too long.
+    LOG(INFO) << update.DebugString();
+  }
 }
 
 // TODO(hpmv): Add more tests here.

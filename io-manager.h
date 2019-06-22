@@ -14,10 +14,9 @@
 class ReadConsumer {
  public:
   virtual ~ReadConsumer() = default;
-  // Reset the consumer's state.
-  virtual void Reset() = 0;
+
   // Append data to the consumer's internal matching buffer.
-  virtual void AppendAvailableData(std::string_view data) = 0;
+  virtual void SetData(std::string_view data) = 0;
 
   // Advance to the next prefix match, returning false if the next match does
   // not exist. If false is returned, the current state is unaffected.
@@ -32,12 +31,10 @@ class ReadConsumer {
 
 class ReadConsumer_Any : public ReadConsumer {
  public:
-  void Reset() override {
-    buf_.clear();
+  void SetData(std::string_view data) override {
+    buf_ = data;
     ptr_ = -1;
   }
-
-  void AppendAvailableData(std::string_view data) override { buf_ += data; }
 
   bool NextMatch(std::string_view* remaining) override {
     if (ptr_ >= static_cast<int>(buf_.length())) {
@@ -53,8 +50,11 @@ class ReadConsumer_Any : public ReadConsumer {
   }
 
   void Get(IOReadResult* result) override {
-    result->set_data(buf_.substr(0, ptr_));
     result->mutable_any();
+    if (ptr_ >= 0) {
+      result->set_data(buf_.substr(0, ptr_));
+      result->set_chars_consumed(ptr_);
+    }
   }
 
  private:
@@ -65,12 +65,11 @@ class ReadConsumer_Any : public ReadConsumer {
 class ReadConsumer_Literal : public ReadConsumer {
  public:
   ReadConsumer_Literal(std::string expected) : expected_(std::move(expected)) {}
-  void Reset() override {
-    matched_.reset();
-    buf_.clear();
-  }
 
-  void AppendAvailableData(std::string_view data) override { buf_ += data; }
+  void SetData(std::string_view data) override {
+    buf_ = data;
+    matched_.reset();
+  }
 
   bool MayHaveMoreMatches() override { return !matched_; }
 
@@ -85,7 +84,10 @@ class ReadConsumer_Literal : public ReadConsumer {
 
   void Get(IOReadResult* result) override {
     result->mutable_literal();
-    result->set_data(expected_);
+    if (matched_ && *matched_) {
+      result->set_data(expected_);
+      result->set_chars_consumed(expected_.size());
+    }
   }
 
  private:
@@ -96,12 +98,10 @@ class ReadConsumer_Literal : public ReadConsumer {
 
 class ReadConsumer_Number : public ReadConsumer {
  public:
-  void Reset() override {
-    buf_.clear();
+  void SetData(std::string_view data) override {
+    buf_ = data;
     ptr_.reset();
   }
-
-  void AppendAvailableData(std::string_view data) override { buf_ += data; }
 
   bool NextMatch(std::string_view* remaining) override {
     if (ptr_) return false;
@@ -117,8 +117,11 @@ class ReadConsumer_Number : public ReadConsumer {
   bool MayHaveMoreMatches() override { return !ptr_; }
 
   void Get(IOReadResult* result) override {
-    result->set_data(buf_.substr(0, *ptr_));
     result->mutable_number();
+    if (ptr_) {
+      result->set_data(buf_.substr(0, *ptr_));
+      result->set_chars_consumed(*ptr_);
+    }
   }
 
  private:
@@ -129,21 +132,22 @@ class ReadConsumer_Number : public ReadConsumer {
 class ReadConsumer_Line : public ReadConsumer {
  public:
   explicit ReadConsumer_Line(std::unique_ptr<ReadConsumer> inner)
-      : inner_(std::move(inner)) {}
-
-  void Reset() override {
-    buf_.clear();
-    ptr_.reset();
-    inner_->Reset();
+      : inner_(std::move(inner)) {
+    if (!inner_) {
+      inner_ = std::make_unique<ReadConsumer_Any>();
+    }
   }
 
-  void AppendAvailableData(std::string_view data) override { buf_ += data; }
+  void SetData(std::string_view data) override {
+    buf_ = data;
+    ptr_.reset();
+  }
 
   bool NextMatch(std::string_view* remaining) override {
     if (ptr_) return false;
     auto nl = buf_.find('\n');
     if (nl != std::string::npos) {
-      inner_->AppendAvailableData(buf_.substr(0, nl));
+      inner_->SetData(buf_.substr(0, nl));
       std::string_view inner_rem;
       while (inner_->NextMatch(&inner_rem)) {
         if (inner_rem.empty()) {
@@ -160,8 +164,13 @@ class ReadConsumer_Line : public ReadConsumer {
   bool MayHaveMoreMatches() override { return !ptr_; }
 
   void Get(IOReadResult* result) override {
-    result->set_data(buf_.substr(0, *ptr_));
-    inner_->Get(result->mutable_line()->mutable_inner());
+    if (ptr_) {
+      result->set_data(buf_.substr(0, *ptr_));
+      inner_->Get(result->mutable_line()->mutable_inner());
+      result->set_chars_consumed(*ptr_);
+    } else {
+      result->mutable_line();
+    }
   }
 
  private:
@@ -175,16 +184,11 @@ class ReadConsumer_Oneof : public ReadConsumer {
   ReadConsumer_Oneof(std::vector<std::unique_ptr<ReadConsumer>> alts)
       : alts_(std::move(alts)) {}
 
-  void Reset() override {
+  void SetData(std::string_view data) override {
     for (auto& alt : alts_) {
-      alt->Reset();
+      alt->SetData(data);
     }
     alt_ = 0;
-  }
-  void AppendAvailableData(std::string_view data) override {
-    for (auto& alt : alts_) {
-      alt->AppendAvailableData(data);
-    }
   }
   bool MayHaveMoreMatches() override {
     for (auto& alt : alts_) {
@@ -211,6 +215,7 @@ class ReadConsumer_Oneof : public ReadConsumer {
     result->mutable_oneof()->set_index(alt_);
     alts_[alt_]->Get(result->mutable_oneof()->mutable_inner());
     result->set_data(result->oneof().inner().data());
+    result->set_chars_consumed(result->oneof().inner().chars_consumed());
   }
 
  private:
@@ -223,23 +228,18 @@ class ReadConsumer_Chain : public ReadConsumer {
   void Add(std::unique_ptr<ReadConsumer> element) {
     LOG_IF(FATAL, sealed_) << "Cannot add after sealing.";
     elements_.push_back(std::move(element));
-    Reset();
   }
 
   void Seal() { sealed_ = true; }
   bool sealed() const { return sealed_; }
 
-  void Reset() override {
-    for (auto& ele : elements_) {
-      ele->Reset();
-    }
-  }
-
-  void AppendAvailableData(std::string_view data) override {
-    elements_[0]->AppendAvailableData(data);
+  void SetData(std::string_view data) override {
+    elements_[0]->SetData(data);
+    valid_prefix_ = 0;
   }
 
   bool MayHaveMoreMatches() override {
+    if (valid_prefix_ < elements_.size()) return true;
     for (auto& ele : elements_) {
       if (ele->MayHaveMoreMatches()) {
         return true;
@@ -249,23 +249,21 @@ class ReadConsumer_Chain : public ReadConsumer {
   }
 
   bool NextMatch(std::string_view* remaining) override {
-    int i = valid_ ? elements_.size() - 1 : 0;
+    int i = valid() ? elements_.size() - 1 : 0;
     while (true) {
       std::string_view rem;
       if (elements_[i]->NextMatch(&rem)) {
         i++;
+        valid_prefix_ = i;
         if (i == elements_.size()) {
-          valid_ = true;
           *remaining = rem;
           return true;
         } else {
-          elements_[i]->Reset();
-          elements_[i]->AppendAvailableData(rem);
+          elements_[i]->SetData(rem);
         }
       } else {
         i--;
         if (i == -1) {
-          valid_ = false;
           return false;
         }
       }
@@ -273,23 +271,55 @@ class ReadConsumer_Chain : public ReadConsumer {
   }
 
   void Get(IOReadResult* result) override {
-    for (auto& ele : elements_) {
-      ele->Get(result->mutable_chain()->add_inner());
+    for (int i = 0; i < valid_prefix_; i++) {
+      elements_[i]->Get(result->mutable_chain()->add_inner());
     }
     std::string data;
     for (const auto& inner : result->chain().inner()) {
-      data += inner.data();
+      data += inner.data().substr(0, inner.chars_consumed());
     }
     result->set_data(data);
+    result->set_chars_consumed(data.size());
   }
 
-  bool valid() const { return valid_; }
+  bool valid() const { return valid_prefix_ == elements_.size(); }
 
  private:
   std::vector<std::unique_ptr<ReadConsumer>> elements_;
   bool sealed_ = false;
-  bool valid_ = false;
+  int valid_prefix_ = 0;
   std::string buf_;
+};
+
+class ReadConsumer_Peek : public ReadConsumer {
+ public:
+  ReadConsumer_Peek(std::unique_ptr<ReadConsumer> inner)
+      : inner_(std::move(inner)) {}
+  void SetData(std::string_view data) override {
+    data_ = data;
+    inner_->SetData(data);
+  }
+
+  void Get(IOReadResult* result) override {
+    inner_->Get(result->mutable_peek()->mutable_inner());
+    result->set_data(result->peek().inner().data());
+    result->set_chars_consumed(0);
+  }
+
+  bool MayHaveMoreMatches() override { return inner_->MayHaveMoreMatches(); }
+
+  bool NextMatch(std::string_view* remaining) override {
+    std::string_view rem;
+    if (inner_->NextMatch(&rem)) {
+      *remaining = data_;
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  std::unique_ptr<ReadConsumer> inner_;
+  std::string data_;
 };
 
 // Manages all read/write calls from the user script.
@@ -315,19 +345,77 @@ class IOManager {
   // Called by UI-triggered RPC thread. Subscribes to UI update events.
   // The callback may be called with nullptr. It should return false if the
   // caller is no longer interested in events.
-  void OnUIUpdate(const std::function<bool(const UIIODataUpdate*)>& callback);
+  void OnUIUpdate(const std::function<bool(const UIIODataUpdate&)>& callback);
 
  private:
   void MaybeSatisfyConsumers() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
-  UIIODataUpdate* NewUpdate() {
-    return google::protobuf::Arena::CreateMessage<UIIODataUpdate>(&arena_);
+
+  struct PerConsumerData {
+    absl::Time issuing_time;
+    IOConsumer* original_request = nullptr;
+    std::unique_ptr<ReadConsumer_Chain> chain;
+    bool complete = false;
+  };
+
+  struct PerProducerData {
+    absl::Time time;
+    IOProducer* producer = nullptr;
+  };
+
+  struct RawOutputData {
+    absl::Time time;
+    std::string content;
+    bool is_stderr;
+  };
+
+  struct IOUpdateState {
+    std::function<bool(const UIIODataUpdate&)> callback;
+    bool valid = true;
+  };
+
+  void SendIOUpdate(const UIIODataUpdate& update, IOUpdateState* state) {
+    if (!state->valid) return;
+    if (state->callback(update)) {
+      state->valid = false;
+    }
+  }
+
+  void SendIOUpdateForProducer(const PerProducerData& producer,
+                               IOUpdateState* state) {
+    UIIODataUpdate update;
+    *update.mutable_input()->mutable_producer() = *producer.producer;
+    update.set_timestamp(absl::ToUnixMicros(producer.time));
+    SendIOUpdate(update, state);
+  }
+
+  void SendIOUpdateForConsumer(int chain_id, const PerConsumerData& consumer,
+                               IOUpdateState* state) {
+    UIIODataUpdate update;
+    *update.mutable_structured_output()->mutable_req() =
+        *consumer.original_request;
+    update.mutable_structured_output()->set_chain_id(chain_id);
+    update.mutable_structured_output()->set_complete(true);
+    consumer.chain->Get(update.mutable_structured_output()->mutable_progress());
+    update.set_timestamp(absl::ToUnixMicros(consumer.issuing_time));
+    SendIOUpdate(update, state);
+  }
+
+  void SendIOUpdateForRawOutput(const RawOutputData& data,
+                                IOUpdateState* state) {
+    UIIODataUpdate update;
+    update.set_timestamp(absl::ToUnixMicros(data.time));
+    update.mutable_raw_output()->set_data(data.content);
+    update.mutable_raw_output()->set_is_stderr(data.is_stderr);
+    SendIOUpdate(update, state);
   }
 
   Process* const process_;
   std::string buf_ GUARDED_BY(mutex_);
   std::deque<int> pending_reads_ GUARDED_BY(mutex_);
-  absl::flat_hash_map<int, std::unique_ptr<ReadConsumer_Chain>> chains_
-      GUARDED_BY(mutex_);
+  absl::flat_hash_map<int, PerConsumerData> chains_ GUARDED_BY(mutex_);
+  std::vector<PerProducerData> all_producers_ GUARDED_BY(mutex_);
+  std::vector<RawOutputData> raw_output_ GUARDED_BY(mutex_);
+  std::vector<IOUpdateState> io_updates_ GUARDED_BY(mutex_);
   google::protobuf::Arena arena_;
   absl::Mutex mutex_;
 };

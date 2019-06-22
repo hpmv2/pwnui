@@ -56,6 +56,9 @@ message IOConsumer {
     message OneOf {
         repeated IOConsumer consumers = 1;
     }
+    message Peek {
+        IOConsumer inner = 1;
+    }
     int32 chain_id = 1;
     IOConsumerInterpretation interp = 2;
 
@@ -68,6 +71,7 @@ message IOConsumer {
         Number number = 8;
         Chain chain = 9;
         OneOf oneof = 10;
+        Peek peek = 11;
     }
 }
 
@@ -123,6 +127,9 @@ message IOReadResult {
         int32 index = 1;
         IOReadResult inner = 2;
     }
+    message Peek {
+        IOReadResult inner = 1;
+    }
 
     string data = 1;
     oneof detail {
@@ -134,7 +141,9 @@ message IOReadResult {
         Number number = 7;
         Chain chain = 8;
         OneOf oneof = 9;
+        Peek peek = 10;
     }
+    int32 chars_consumed = 11;
 }
 
 message IOServerResponse {
@@ -152,11 +161,13 @@ message UIIODataRequest {
 }
 
 message UIIODataUpdate {
-    int64 timestamp = 3;
+    int64 timestamp = 1;
 
     oneof kind {
-        UIIODriverOutput driver_output = 1;
-        // TODO: Implement the IO data output again.
+        UIIODriverOutput driver_output = 2;
+        UIIORawOutput raw_output = 3;
+        UIIOStructuredOutput structured_output = 4;
+        UIIOStructuredInput input = 5;
     }
 }
 
@@ -165,5 +176,23 @@ message UIIODriverOutput {
     bool is_stderr = 2;
 }
 
+message UIIORawOutput {
+    bytes data = 1;
+    bool is_stderr = 2;
+}
+
+message UIIOStructuredOutput {
+    int32 chain_id = 1;
+    // If only this is present, this is a new chain.
+    IOConsumer req = 2;
+    // If only this is present, this is an update to an existing chain.
+    IOReadResult progress = 3;
+    // If true, this chain is finalized.
+    bool complete = 4;
+}
+
+message UIIOStructuredInput {
+    IOProducer producer = 1;
+}
 
 // End messages used for IO data streaming to the UI.

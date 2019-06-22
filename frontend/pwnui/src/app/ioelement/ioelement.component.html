@@ -1,0 +1,4 @@
+<ioconsumer-element *ngIf="consumer != null" [req]="consumer.getReq()" [progress]="consumer.getProgress()">
+</ioconsumer-element>
+<span class="producer" *ngIf="producer != null">{{producer.getProducer().getLiteral().getLiteral()}}</span>
+<span class="raw-output" *ngIf="rawOutput != null">{{binaryToAsciiText(rawOutput.getData_asU8())}}</span>

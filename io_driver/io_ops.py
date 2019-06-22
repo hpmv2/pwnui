@@ -68,7 +68,7 @@ class IoOp_Line(IoOp):
 
 
 class IoOp_Number(IoOp):
-    def ToProto(self, proto):
+    def ToProtoInternal(self, proto):
         proto.number.SetInParent()
 
 
@@ -97,6 +97,8 @@ class IoOp_Chain(IoOp):
     def __rshift__(self, other):
         op = IoOp_Chain()
         op.copy_from(self)
+        if type(other) == str:
+            other = IoOp_Literal(other)
         op.chain.append(other)
         return op
 
@@ -127,6 +129,8 @@ class IoChainBuilder(object):
         if self.sealed:
             raise Exception(
                 'Cannot add more to a read chain once a subsequent chain is started or the chain is already synced.')
+        if type(op) == str:
+            op = IoOp_Literal(op)
         self.chain = self.chain >> op
         self.manager.Read(self.chain_id, op)
         return self

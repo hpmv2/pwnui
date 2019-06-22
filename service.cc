@@ -164,21 +164,34 @@ class GetIODataForUIHandler : public AsyncCallHandler {
       delete this;
     }
     if (state_ == INITIAL) {
+      LOG(INFO) << "Setting up";
       ctx_.AsyncNotifyWhenDone(tag(TAG_DONE));
       service_->RequestGetIODataForUI(&ctx_, &req_, &writer_, cq_, cq_, tag());
       state_ = HANDSHAKE;
     } else if (state_ == HANDSHAKE) {
       (new GetIODataForUIHandler(service_, cq_, server_state_))->Proceed(0);
-      server_state_->GetSession(req_.session_id())
-          ->OnDriverOutput([this](const UIIODriverOutput& output) {
-            UIIODataUpdate update;
-            *update.mutable_driver_output() = output;
+      auto* session_state = server_state_->GetSession(req_.session_id());
+      session_state->OnDriverOutput([this](const UIIODriverOutput& output) {
+        UIIODataUpdate update;
+        *update.mutable_driver_output() = output;
+        absl::MutexLock l(&mutex_);
+        pending_writes_.push(std::move(update));
+        if (!is_waiting_for_write_) {
+          ProcessQueue();
+        }
+        // TODO: Use some better mechanism to cancel the subscription.
+      });
+      session_state->io_manager()->OnUIUpdate(
+          [this](const UIIODataUpdate& update) {
             absl::MutexLock l(&mutex_);
-            pending_writes_.push(std::move(update));
+            pending_writes_.push(update);
             if (!is_waiting_for_write_) {
               ProcessQueue();
             }
+            // TODO: Use some better mechanism to cancel the subscription.
+            return false;
           });
+
       state_ = UPDATE;
     } else if (state_ == UPDATE) {
       absl::MutexLock l(&mutex_);
@@ -196,6 +209,7 @@ class GetIODataForUIHandler : public AsyncCallHandler {
   void ProcessQueue() EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     if (!pending_writes_.empty()) {
       is_waiting_for_write_ = true;
+      LOG(INFO) << "UI IO Update -> " << pending_writes_.front().DebugString();
       writer_.Write(pending_writes_.front(), tag());
       pending_writes_.pop();
     }

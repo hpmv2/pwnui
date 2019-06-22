@@ -1,5 +1,5 @@
 import { Component, Input, OnInit, OnDestroy } from '@angular/core';
-import { UIIODataRequest } from 'src/rpc/service_pb';
+import { UIIODataRequest, UIIOStructuredOutput, UIIOStructuredInput, UIIORawOutput } from 'src/rpc/service_pb';
 import { UIServiceClient } from 'src/rpc/ServiceServiceClientPb';
 
 @Component({
@@ -11,6 +11,11 @@ export class IORendererComponent implements OnInit, OnDestroy {
   public driverText: string = '';
 
   @Input() public sessionId: number;
+
+  public consumersMap = new Map<number, UIIOStructuredOutput>();
+  public consumers: number[] = [];
+  public producers: UIIOStructuredInput[] = [];
+  public rawOutputs: UIIORawOutput[] = [];
 
   constructor(private client: UIServiceClient) { }
 
@@ -30,6 +35,23 @@ export class IORendererComponent implements OnInit, OnDestroy {
       if (update.hasDriverOutput()) {
         this.driverText += this.binaryToAsciiText(
           update.getDriverOutput()!.getData_asU8());
+      }
+      if (update.hasStructuredOutput()) {
+        let output = update.getStructuredOutput()!;
+        if (this.consumersMap.has(output.getChainId())) {
+          let consumer = this.consumersMap.get(output.getChainId())!;
+          consumer.setReq(output.getReq());
+          consumer.setProgress(output.getProgress());
+        } else {
+          this.consumersMap.set(output.getChainId(), output);
+          this.consumers.push(output.getChainId());
+        }
+      }
+      if (update.hasInput()) {
+        this.producers.push(update.getInput()!);
+      }
+      if (update.getRawOutput()) {
+        this.rawOutputs.push(update.getRawOutput()!);
       }
     });
   }

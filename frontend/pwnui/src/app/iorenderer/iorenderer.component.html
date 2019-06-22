@@ -1,1 +1,5 @@
-<iodriver-terminal [text]="driverText"></iodriver-terminal>
+<ioelement *ngFor="let consumer of consumers" [consumer]="consumersMap.get(consumer)"></ioelement>
+<ioelement *ngFor="let producer of producers" [producer]="producer"></ioelement>
+<ioelement *ngFor="let rawOutput of rawOutputs" [rawOutput]="rawOutput"></ioelement>
+<iodriver-terminal [text]="driverText">
+</iodriver-terminal>

@@ -145,6 +145,12 @@ export class IOConsumer extends jspb.Message {
   clearOneof(): void;
   hasOneof(): boolean;
 
+  getPeek(): IOConsumer.Peek | undefined;
+  setPeek(value?: IOConsumer.Peek): void;
+  hasPeek(): boolean;
+  clearPeek(): void;
+  hasPeek(): boolean;
+
   getConsumerCase(): IOConsumer.ConsumerCase;
 
   serializeBinary(): Uint8Array;
@@ -167,6 +173,7 @@ export namespace IOConsumer {
     number?: IOConsumer.Number.AsObject,
     chain?: IOConsumer.Chain.AsObject,
     oneof?: IOConsumer.OneOf.AsObject,
+    peek?: IOConsumer.Peek.AsObject,
   }
 
   export class Any extends jspb.Message {
@@ -329,6 +336,27 @@ export namespace IOConsumer {
   }
 
 
+  export class Peek extends jspb.Message {
+    getInner(): IOConsumer | undefined;
+    setInner(value?: IOConsumer): void;
+    hasInner(): boolean;
+    clearInner(): void;
+
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): Peek.AsObject;
+    static toObject(includeInstance: boolean, msg: Peek): Peek.AsObject;
+    static serializeBinaryToWriter(message: Peek, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): Peek;
+    static deserializeBinaryFromReader(message: Peek, reader: jspb.BinaryReader): Peek;
+  }
+
+  export namespace Peek {
+    export type AsObject = {
+      inner?: IOConsumer.AsObject,
+    }
+  }
+
+
   export enum ConsumerCase { 
     CONSUMER_NOT_SET = 0,
     ANY = 3,
@@ -339,6 +367,7 @@ export namespace IOConsumer {
     NUMBER = 8,
     CHAIN = 9,
     ONEOF = 10,
+    PEEK = 11,
   }
 }
 
@@ -517,6 +546,15 @@ export class IOReadResult extends jspb.Message {
   clearOneof(): void;
   hasOneof(): boolean;
 
+  getPeek(): IOReadResult.Peek | undefined;
+  setPeek(value?: IOReadResult.Peek): void;
+  hasPeek(): boolean;
+  clearPeek(): void;
+  hasPeek(): boolean;
+
+  getCharsConsumed(): number;
+  setCharsConsumed(value: number): void;
+
   getDetailCase(): IOReadResult.DetailCase;
 
   serializeBinary(): Uint8Array;
@@ -538,6 +576,8 @@ export namespace IOReadResult {
     number?: IOReadResult.Number.AsObject,
     chain?: IOReadResult.Chain.AsObject,
     oneof?: IOReadResult.OneOf.AsObject,
+    peek?: IOReadResult.Peek.AsObject,
+    charsConsumed: number,
   }
 
   export class Any extends jspb.Message {
@@ -688,6 +728,27 @@ export namespace IOReadResult {
   }
 
 
+  export class Peek extends jspb.Message {
+    getInner(): IOReadResult | undefined;
+    setInner(value?: IOReadResult): void;
+    hasInner(): boolean;
+    clearInner(): void;
+
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): Peek.AsObject;
+    static toObject(includeInstance: boolean, msg: Peek): Peek.AsObject;
+    static serializeBinaryToWriter(message: Peek, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): Peek;
+    static deserializeBinaryFromReader(message: Peek, reader: jspb.BinaryReader): Peek;
+  }
+
+  export namespace Peek {
+    export type AsObject = {
+      inner?: IOReadResult.AsObject,
+    }
+  }
+
+
   export enum DetailCase { 
     DETAIL_NOT_SET = 0,
     ANY = 2,
@@ -698,6 +759,7 @@ export namespace IOReadResult {
     NUMBER = 7,
     CHAIN = 8,
     ONEOF = 9,
+    PEEK = 10,
   }
 }
 
@@ -763,6 +825,24 @@ export class UIIODataUpdate extends jspb.Message {
   clearDriverOutput(): void;
   hasDriverOutput(): boolean;
 
+  getRawOutput(): UIIORawOutput | undefined;
+  setRawOutput(value?: UIIORawOutput): void;
+  hasRawOutput(): boolean;
+  clearRawOutput(): void;
+  hasRawOutput(): boolean;
+
+  getStructuredOutput(): UIIOStructuredOutput | undefined;
+  setStructuredOutput(value?: UIIOStructuredOutput): void;
+  hasStructuredOutput(): boolean;
+  clearStructuredOutput(): void;
+  hasStructuredOutput(): boolean;
+
+  getInput(): UIIOStructuredInput | undefined;
+  setInput(value?: UIIOStructuredInput): void;
+  hasInput(): boolean;
+  clearInput(): void;
+  hasInput(): boolean;
+
   getKindCase(): UIIODataUpdate.KindCase;
 
   serializeBinary(): Uint8Array;
@@ -777,11 +857,17 @@ export namespace UIIODataUpdate {
   export type AsObject = {
     timestamp: number,
     driverOutput?: UIIODriverOutput.AsObject,
+    rawOutput?: UIIORawOutput.AsObject,
+    structuredOutput?: UIIOStructuredOutput.AsObject,
+    input?: UIIOStructuredInput.AsObject,
   }
 
   export enum KindCase { 
     KIND_NOT_SET = 0,
-    DRIVER_OUTPUT = 1,
+    DRIVER_OUTPUT = 2,
+    RAW_OUTPUT = 3,
+    STRUCTURED_OUTPUT = 4,
+    INPUT = 5,
   }
 }
 
@@ -806,6 +892,84 @@ export namespace UIIODriverOutput {
   export type AsObject = {
     data: Uint8Array | string,
     isStderr: boolean,
+  }
+}
+
+export class UIIORawOutput extends jspb.Message {
+  getData(): Uint8Array | string;
+  getData_asU8(): Uint8Array;
+  getData_asB64(): string;
+  setData(value: Uint8Array | string): void;
+
+  getIsStderr(): boolean;
+  setIsStderr(value: boolean): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): UIIORawOutput.AsObject;
+  static toObject(includeInstance: boolean, msg: UIIORawOutput): UIIORawOutput.AsObject;
+  static serializeBinaryToWriter(message: UIIORawOutput, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): UIIORawOutput;
+  static deserializeBinaryFromReader(message: UIIORawOutput, reader: jspb.BinaryReader): UIIORawOutput;
+}
+
+export namespace UIIORawOutput {
+  export type AsObject = {
+    data: Uint8Array | string,
+    isStderr: boolean,
+  }
+}
+
+export class UIIOStructuredOutput extends jspb.Message {
+  getChainId(): number;
+  setChainId(value: number): void;
+
+  getReq(): IOConsumer | undefined;
+  setReq(value?: IOConsumer): void;
+  hasReq(): boolean;
+  clearReq(): void;
+
+  getProgress(): IOReadResult | undefined;
+  setProgress(value?: IOReadResult): void;
+  hasProgress(): boolean;
+  clearProgress(): void;
+
+  getComplete(): boolean;
+  setComplete(value: boolean): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): UIIOStructuredOutput.AsObject;
+  static toObject(includeInstance: boolean, msg: UIIOStructuredOutput): UIIOStructuredOutput.AsObject;
+  static serializeBinaryToWriter(message: UIIOStructuredOutput, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): UIIOStructuredOutput;
+  static deserializeBinaryFromReader(message: UIIOStructuredOutput, reader: jspb.BinaryReader): UIIOStructuredOutput;
+}
+
+export namespace UIIOStructuredOutput {
+  export type AsObject = {
+    chainId: number,
+    req?: IOConsumer.AsObject,
+    progress?: IOReadResult.AsObject,
+    complete: boolean,
+  }
+}
+
+export class UIIOStructuredInput extends jspb.Message {
+  getProducer(): IOProducer | undefined;
+  setProducer(value?: IOProducer): void;
+  hasProducer(): boolean;
+  clearProducer(): void;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): UIIOStructuredInput.AsObject;
+  static toObject(includeInstance: boolean, msg: UIIOStructuredInput): UIIOStructuredInput.AsObject;
+  static serializeBinaryToWriter(message: UIIOStructuredInput, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): UIIOStructuredInput;
+  static deserializeBinaryFromReader(message: UIIOStructuredInput, reader: jspb.BinaryReader): UIIOStructuredInput;
+}
+
+export namespace UIIOStructuredInput {
+  export type AsObject = {
+    producer?: IOProducer.AsObject,
   }
 }
 

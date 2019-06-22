@@ -6,12 +6,16 @@ import { IORendererComponent } from './iorenderer/iorenderer.component';
 import { MonacoEditorModule } from 'ngx-monaco-editor';
 import { FormsModule } from '@angular/forms';
 import { IODriverTerminalComponent } from './iodriver-terminal/iodriver-terminal.component';
+import { IOElementComponent } from './ioelement/ioelement.component';
+import { IOConsumerElementComponent } from './ioconsumer-element/ioconsumer-element.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     IORendererComponent,
     IODriverTerminalComponent,
+    IOElementComponent,
+    IOConsumerElementComponent,
   ],
   imports: [
     BrowserModule,

@@ -1,0 +1,12 @@
+<span *ngIf="progress != null">
+  <span class="chain" *ngIf="req.hasChain()">
+    <ioconsumer-element class="element" *ngFor="let inner of req.getChain().getConsumersList(); let i=index"
+      [req]="inner" [progress]="chainInnerProgress(i)">
+    </ioconsumer-element>
+  </span>
+  <span *ngIf="!req.hasChain()">
+    <span class="uninterpreted" *ngIf="!hasInterp">{{progress.getData()}}</span>
+    <span class="interpreted" *ngIf="hasInterp">{{progress.getData()}}</span>
+  </span>
+</span>
+<span *ngIf="progress == null" class="missing">??</span>
