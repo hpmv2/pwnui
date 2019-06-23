@@ -179,6 +179,52 @@ class ReadConsumer_Line : public ReadConsumer {
   std::unique_ptr<ReadConsumer> inner_;
 };
 
+class ReadConsumer_NChars : public ReadConsumer {
+ public:
+  ReadConsumer_NChars(int min, int max) : min_(min), max_(max) {}
+
+  void SetData(std::string_view data) override {
+    buf_ = data;
+    ptr_ = -1;
+  }
+
+  bool NextMatch(std::string_view* remaining) override {
+    if (ptr_ < min_) {
+      if (buf_.length() < min_) {
+        ptr_ = buf_.length();
+        return false;
+      }
+      ptr_ = min_;
+      *remaining = std::string_view(buf_).substr(ptr_);
+      return true;
+    }
+    if (ptr_ < buf_.length() && ptr_ < max_) {
+      ptr_++;
+      *remaining = std::string_view(buf_).substr(ptr_);
+      return true;
+    }
+    return false;
+  }
+
+  bool MayHaveMoreMatches() override {
+    return ptr_ < max_ && ptr_ < buf_.length();
+  }
+
+  void Get(IOReadResult* result) override {
+    result->mutable_nchars();
+    if (ptr_ >= 0) {
+      result->set_data(buf_.substr(0, ptr_));
+      result->set_chars_consumed(ptr_);
+    }
+  }
+
+ private:
+  const int min_;
+  const int max_;
+  std::string buf_;
+  int ptr_ = -1;
+};
+
 class ReadConsumer_Oneof : public ReadConsumer {
  public:
   ReadConsumer_Oneof(std::vector<std::unique_ptr<ReadConsumer>> alts)

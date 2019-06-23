@@ -102,34 +102,34 @@ class IOServerHandler : public AsyncCallHandler {
       switch (req_.request_case()) {
         case IOServerRequest::kStartId: {
           IOServerResponse resp;
+          LOG(INFO) << "IO driver <- " << req_.ShortDebugString();
           session_ = server_state_->GetSession(req_.start_id());
           resp.set_ack(true);
-          LOG(INFO) << "IO driver <- " << req_.ShortDebugString();
           io_.Write(resp, tag());
           break;
         }
         case IOServerRequest::kRead: {
           IOServerResponse resp;
           resp.set_ack(true);
-          session_->io_manager()->Read(req_.read());
           LOG(INFO) << "IO driver <- " << req_.ShortDebugString();
+          session_->io_manager()->Read(req_.read());
           io_.Write(resp, tag());
           break;
         }
         case IOServerRequest::kWrite: {
           IOServerResponse resp;
           resp.set_ack(true);
-          session_->io_manager()->Write(req_.write());
           LOG(INFO) << "IO driver <- " << req_.ShortDebugString();
+          session_->io_manager()->Write(req_.write());
           io_.Write(resp, tag());
           break;
         }
         case IOServerRequest::kSync: {
           IOServerResponse resp;
           // TODO: This is blocking, which is problematic. Make it not block.
+          LOG(INFO) << "IO driver <- " << req_.ShortDebugString();
           session_->io_manager()->ReadSync(req_.sync().chain_id(),
                                            resp.mutable_result());
-          LOG(INFO) << "IO driver <- " << req_.ShortDebugString();
           LOG(INFO) << "IO driver -> " << resp.ShortDebugString();
           io_.Write(resp, tag());
           break;

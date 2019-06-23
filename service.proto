@@ -80,6 +80,9 @@ enum IOConsumerInterpretation {
     IOCI_RAW = 1;
     IOCI_LITTLE_ENDIAN = 2;
     IOCI_DECIMAL = 3;
+    // Special interpretation, returning a boolean true.
+    // This is used for the .seen annotation, useful for oneof.
+    IOCI_TRUE = 4;
 }
 
 message IOProducer {

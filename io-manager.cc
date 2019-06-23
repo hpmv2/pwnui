@@ -66,7 +66,8 @@ std::unique_ptr<ReadConsumer> ParseConsumer(const IOConsumer& proto) {
       break;
     case IOConsumer::kLine:
       consumer = std::make_unique<ReadConsumer_Line>(
-          ParseConsumer(proto.line().predicate()));
+          proto.line().has_predicate() ? ParseConsumer(proto.line().predicate())
+                                       : nullptr);
       break;
     case IOConsumer::kOneof: {
       std::vector<std::unique_ptr<ReadConsumer>> alts;
@@ -74,6 +75,11 @@ std::unique_ptr<ReadConsumer> ParseConsumer(const IOConsumer& proto) {
         alts.push_back(ParseConsumer(inner));
       }
       consumer = std::make_unique<ReadConsumer_Oneof>(std::move(alts));
+      break;
+    }
+    case IOConsumer::kNchars: {
+      consumer = std::make_unique<ReadConsumer_NChars>(proto.nchars().min(),
+                                                       proto.nchars().max());
       break;
     }
     case IOConsumer::kChain: {

@@ -8,12 +8,26 @@ class IoOp(object):
     def copy_from(self, other):
         self.interp = other.interp
 
-    @property
-    def raw(self):
+    def set_interp(self, interp):
         op = self.__class__()
         op.copy_from(self)
-        op.interp = pb.IOCI_RAW
+        op.interp = interp
         return op
+
+    @property
+    def raw(self): return self.set_interp(pb.IOCI_RAW)
+
+    @property
+    def dec(self): return self.set_interp(pb.IOCI_DECIMAL)
+
+    @property
+    def le(self): return self.set_interp(pb.IOCI_LITTLE_ENDIAN)
+
+    @property
+    def seen(self): return self.set_interp(pb.IOCI_TRUE)
+
+    @property
+    def peek(self): return IoOp_Peek(self)
 
     def __rshift__(self, other):
         op = IoOp_Chain()
@@ -31,7 +45,8 @@ class IoOp(object):
     def ExtractResults(self, result, builder):
         self.ExtractResultsInternal(result, builder)
         if self.interp:
-            builder.Add(result.data, self.interp)
+            builder.Add(
+                result.data if result is not None else None, self.interp)
 
     def ExtractResultsInternal(self, result, builder):
         pass
@@ -64,7 +79,8 @@ class IoOp_Line(IoOp):
 
     def ExtractResultsInternal(self, result, builder):
         if self.matcher:
-            self.matcher.ExtractResults(result.line.inner, builder)
+            self.matcher.ExtractResults(
+                result.line.inner if result is not None else None, builder)
 
 
 class IoOp_Number(IoOp):
@@ -83,6 +99,43 @@ class IoOp_Literal(IoOp):
 
     def ToProtoInternal(self, proto):
         proto.literal.literal = self.lit
+
+
+class IoOp_NChars(IoOp):
+    def __init__(self, min=0, max=0):
+        super(IoOp_NChars, self).__init__()
+        self.min = min
+        self.max = max
+
+    def copy_from(self, other):
+        super(IoOp_NChars, self).copy_from(other)
+        self.min = other.min
+        self.max = other.max
+
+    def ToProtoInternal(self, proto):
+        proto.nchars.min = self.min
+        proto.nchars.max = self.max
+
+
+class IoOp_OneOf(IoOp):
+    def __init__(self, *alts):
+        super(IoOp_OneOf, self).__init__()
+        self.alts = alts
+
+    def copy_from(self, other):
+        super(IoOp_OneOf, self).copy_from(other)
+        self.alts = other.alts[:]
+
+    def ToProtoInternal(self, proto):
+        for alt in self.alts:
+            alt.ToProto(proto.oneof.consumers.add())
+
+    def ExtractResultsInternal(self, result, builder):
+        for i in range(len(self.alts)):
+            if result is None or result.oneof.index != i:
+                self.alts[i].ExtractResults(None, builder)
+            else:
+                self.alts[i].ExtractResults(result.oneof.inner, builder)
 
 
 class IoOp_Chain(IoOp):
@@ -108,13 +161,39 @@ class IoOp_Chain(IoOp):
 
     def ExtractResultsInternal(self, result, builder):
         for i in range(len(self.chain)):
-            self.chain[i].ExtractResults(result.chain.inner[i], builder)
+            self.chain[i].ExtractResults(
+                result.chain.inner[i] if result is not None else None, builder)
+
+
+class IoOp_Peek(IoOp):
+    def __init__(self, inner):
+        super(IoOp_Peek, self).__init__()
+        self.inner = inner
+
+    def copy_from(self, other):
+        super(IoOp_Peek, self).copy_from(other)
+        self.inner = other.inner
+
+    def ToProtoInternal(self, proto):
+        self.inner.ToProto(proto.peek.inner)
+
+    def ExtractResultsInternal(self, result, builder):
+        self.inner.ExtractResults(result, builder)
 
 
 any = IoOp_Any()
 line = IoOp_Line()
 number = IoOp_Number()
 lit = IoOp_Literal
+oneof = IoOp_OneOf
+
+
+def nch(n):
+    return IoOp_NChars(n, n)
+
+
+def maxch(n):
+    return IoOp_NChars(0, n)
 
 
 class IoChainBuilder(object):
@@ -148,8 +227,21 @@ class ResultsBuilder(object):
         self.res = []
 
     def Add(self, data, interp):
-        if interp == pb.IOCI_RAW:
+        if data is None:
+            self.res.append(None)
+        elif interp == pb.IOCI_RAW:
             self.res.append(data)
+        elif interp == pb.IOCI_DECIMAL:
+            self.res.append(int(data))
+        elif interp == pb.IOCI_LITTLE_ENDIAN:
+            n = 0
+            k = 0
+            for c in data:
+                n += ord(c) << k
+                k += 8
+            self.res.append(n)
+        elif interp == pb.IOCI_TRUE:
+            self.res.append(True)
         else:
             raise NotImplementedError('Unknown interpretation: ' + str(interp))
 
