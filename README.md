@@ -24,6 +24,10 @@ Install Bazel and protoc
 * https://docs.bazel.build/versions/master/install-ubuntu.html
 * protoc MUST NOT be installed from APT. Its version is way too archaic. Download from [here](https://gist.github.com/ryujaehun/991f5f1e8c1485dea72646877707f497) and just put protoc in PATH.
 
+Install Docker
+
+* Follow the instructions on https://docs.docker.com/install/linux/docker-ce/ubuntu/
+
 Development shortcuts:
 
 * Follow instructions here to set up clangd autocompletion for vscode/vim: https://github.com/grailbio/bazel-compilation-database
